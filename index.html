@@ -466,23 +466,44 @@
             const config = CONFIG_MINYAK[jenisMinyakSemasa];
             const bulanFilter = document.getElementById('filterBulan').value;
             const bulanGuna = bulanFilter || new Date().toISOString().slice(0, 7);
-            const rekodBulan = senaraiRekod.filter(r => r.tarikh.startsWith(bulanGuna));
-            
-            // Kemaskini label tajuk dashboard
-            const namaBulan = new Date(bulanGuna + '-01').toLocaleDateString('ms-MY', {month: 'long', year: 'numeric'});
-            document.getElementById('tajukCartaBoat').textContent = `Penggunaan Ikut Kategori - ${namaBulan}`;
-            document.getElementById('tajukCartaBaki').textContent = `Trend Baki Akhir - ${namaBulan}`;
+           const rekodBulan = senaraiRekod.filter(r => {
+    if (!r['Tarikh']) return false;
+    const parts = r['Tarikh'].split('/'); // "28/04/2026" → ["28","04","2026"]
+    if (parts.length !== 3) return false;
+    const tarikhFormat = `${parts[2]}-${parts[1]}`; // → "2026-04"
+    return tarikhFormat === bulanGuna;
+});
 
-            const dataBoat = {};
-            let totalMasukBulan = 0;
-            config.items.forEach(bot => dataBoat[bot.id] = 0);
-          let totalMasukBulan = 0;
+// Kemaskini label tajuk dashboard
+const namaBulan = new Date(bulanGuna + '-01').toLocaleDateString('ms-MY', {month: 'long', year: 'numeric'});
+document.getElementById('tajukCartaBoat').textContent = `Penggunaan Ikut Kategori - ${namaBulan}`;
+document.getElementById('tajukCartaBaki').textContent = `Trend Baki Akhir - ${namaBulan}`;
+
+const dataBoat = {};
+let totalMasukBulan = 0;
 let totalGunaBulan = 0;
 config.items.forEach(bot => dataBoat[bot.id] = 0);
 
 rekodBulan.forEach(r => {
     // STOK MASUK - ikut nama kolum "Masuk (L)" dalam Sheet
     totalMasukBulan += parseFloat(r['Masuk (L)']) || 0;
+
+    // TOTAL GUNA - sum semua kolum ikut nama sebenar dalam Sheet
+    totalGunaBulan += (parseFloat(r['KPL 1']) || 0) +
+                      (parseFloat(r['KPL 2']) || 0) +
+                      (parseFloat(r['KPL 3']) || 0) +
+                      (parseFloat(r['TMB 1']) || 0) +
+                      (parseFloat(r['TMB 2']) || 0) +
+                      (parseFloat(r['TMB 3']) || 0) +
+                      (parseFloat(r['TMB 5']) || 0) +
+                      (parseFloat(r['3SIP']) || 0) +
+                      (parseFloat(r['15PD']) || 0) +
+                      (parseFloat(r['PRNC']) || 0) +
+                      (parseFloat(r['EXPL']) || 0) +
+                      (parseFloat(r['YTR']) || 0) +
+                      (parseFloat(r['PGR']) || 0) +
+                      (parseFloat(r['Keluar (L)']) || 0);
+});
     
     // TOTAL GUNA - sum semua kolum ikut nama sebenar dalam Sheet
     totalGunaBulan += (parseFloat(r['KPL 1']) || 0) + 
@@ -512,7 +533,7 @@ rekodBulan.forEach(r => {
     dataBoat['prnc'] += parseFloat(r['PRNC']) || 0;
     dataBoat['expl'] += parseFloat(r['EXPL']) || 0;
     dataBoat['lain'] += parseFloat(r['LAIN']) || 0;
-});
+
 
 document.getElementById('statGunaBulan').innerText = totalGunaBulan.toFixed(0) + ' L';
 document.getElementById('statMasukBulan').innerText = totalMasukBulan.toFixed(0) + ' L';
