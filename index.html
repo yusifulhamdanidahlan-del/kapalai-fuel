@@ -474,41 +474,38 @@
             document.getElementById('tajukCartaBaki').textContent = `Trend Baki Akhir - ${namaBulan}`;
 
             const dataBoat = {};
-          let totalMasukBulan = 0;
-let totalGunaBulan = 0;
-config.items.forEach(bot => dataBoat[bot.id] = 0);
-
+            let totalMasukBulan = 0;
+            config.items.forEach(bot => dataBoat[bot.id] = 0);
 rekodBulan.forEach(r => {
-    // KIRA STOK MASUK - sum semua isi*
-    totalMasukBulan += (parseFloat(r.isiKpl1) || 0) + 
-                       (parseFloat(r.isiKpl2) || 0) + 
-                       (parseFloat(r.isiTmb1) || 0) + 
-                       (parseFloat(r.isiTmb2) || 0) + 
-                       (parseFloat(r.isiSip3) || 0);
+    // STOK MASUK - guna nama kolum sebenar "Masuk (L)"
+    totalMasukBulan += parseFloat(r['Masuk (L)']) || 0;
     
-    // KIRA TOTAL GUNA - sum semua penggunaan
-    totalGunaBulan += (parseFloat(r.kpl1) || 0) + 
-                      (parseFloat(r.kpl2) || 0) + 
-                      (parseFloat(r.tmb1) || 0) + 
-                      (parseFloat(r.tmb2) || 0) + 
-                      (parseFloat(r.sip3) || 0) + 
-                      (parseFloat(r.keluar) || 0);
-    
-    // Untuk graf kategori
-    config.items.forEach(bot => {
-        dataBoat[bot.id] += parseFloat(r[bot.id]) || 0;
-    });
+    // TOTAL GUNA - sum semua kolum penggunaan ikut nama sebenar
+    totalGunaBulan += (parseFloat(r['KPL 1']) || 0) + 
+                      (parseFloat(r['KPL 2']) || 0) + 
+                      (parseFloat(r['KPL 3']) || 0) +
+                      (parseFloat(r['TMB 1']) || 0) + 
+                      (parseFloat(r['TMB 2']) || 0) + 
+                      (parseFloat(r['TMB 3']) || 0) +
+                      (parseFloat(r['TMB 5']) || 0) +
+                      (parseFloat(r['3SIP']) || 0) + 
+                      (parseFloat(r['15PD']) || 0) +
+                      (parseFloat(r['PRNC']) || 0) +
+                      (parseFloat(r['EXPL']) || 0) +
+                      (parseFloat(r['LAIN']) || 0) +
+                      (parseFloat(r['Keluar (L)']) || 0);
 });
 
 // Update ke HTML
 document.getElementById('statGunaBulan').innerText = totalGunaBulan.toFixed(0) + ' L';
 document.getElementById('statMasukBulan').innerText = totalMasukBulan.toFixed(0) + ' L';
+            
+
             if (cartaBoat) cartaBoat.destroy();
             const ctx1 = document.getElementById('cartaBoat');
             cartaBoat = new Chart(ctx1, {
                 type: 'bar',
                 data: {
-                    labels: SENARAI_BOT.map(bot => bot.short),
                     labels: config.items.map(bot => bot.short),
                     datasets: [{
                         label: 'Liter',
@@ -672,7 +669,7 @@ document.getElementById('statMasukBulan').innerText = totalMasukBulan.toFixed(0)
 
             // Kemaskini maklumat penyedia laporan
             const skrg = new Date();
-            document.getElementById('infoLaporan').innerHTML = `Laporan dibuat oleh: <b>iful</b> | Tarikh: ${skrg.toLocaleDateString('ms-MY')} | Masa: ${skrg.toLocaleTimeString('ms-MY')}`;
+            document.getElementById('infoLaporan').innerHTML = `Laporan dibuat oleh: <b>${penggunaSemasa.id}</b> | Tarikh: ${skrg.toLocaleDateString('ms-MY')} | Masa: ${skrg.toLocaleTimeString('ms-MY')}`;
         }
 
         window.simpanData = async function() {
@@ -792,7 +789,7 @@ document.getElementById('statMasukBulan').innerText = totalMasukBulan.toFixed(0)
             doc.setTextColor(100);
             const filterLabel = tarikhCari || bulanFilter || "Semua Rekod";
             const skrg = new Date();
-            doc.text(`Laporan: ${filterLabel} | Dibuat oleh: iful | Tarikh: ${skrg.toLocaleDateString('ms-MY')} | Masa: ${skrg.toLocaleTimeString('ms-MY')}`, 148, 22, { align: 'center' });
+            doc.text(`Laporan: ${filterLabel} | Dibuat oleh: ${penggunaSemasa.id} | Tarikh: ${skrg.toLocaleDateString('ms-MY')} | Masa: ${skrg.toLocaleTimeString('ms-MY')}`, 148, 22, { align: 'center' });
 
             let tableStartY = 28;
 
