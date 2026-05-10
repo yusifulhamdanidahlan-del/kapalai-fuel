@@ -476,11 +476,15 @@
             const dataBoat = {};
             let totalMasukBulan = 0;
             config.items.forEach(bot => dataBoat[bot.id] = 0);
+          let totalMasukBulan = 0;
+let totalGunaBulan = 0;
+config.items.forEach(bot => dataBoat[bot.id] = 0);
+
 rekodBulan.forEach(r => {
-    // STOK MASUK - guna nama kolum sebenar "Masuk (L)"
+    // STOK MASUK - ikut nama kolum "Masuk (L)" dalam Sheet
     totalMasukBulan += parseFloat(r['Masuk (L)']) || 0;
     
-    // TOTAL GUNA - sum semua kolum penggunaan ikut nama sebenar
+    // TOTAL GUNA - sum semua kolum ikut nama sebenar dalam Sheet
     totalGunaBulan += (parseFloat(r['KPL 1']) || 0) + 
                       (parseFloat(r['KPL 2']) || 0) + 
                       (parseFloat(r['KPL 3']) || 0) +
@@ -494,13 +498,24 @@ rekodBulan.forEach(r => {
                       (parseFloat(r['EXPL']) || 0) +
                       (parseFloat(r['LAIN']) || 0) +
                       (parseFloat(r['Keluar (L)']) || 0);
+    
+    // Untuk carta - tukar kpl1 jadi KPL 1
+    dataBoat['kpl1'] += parseFloat(r['KPL 1']) || 0;
+    dataBoat['kpl2'] += parseFloat(r['KPL 2']) || 0;
+    dataBoat['kpl3'] += parseFloat(r['KPL 3']) || 0;
+    dataBoat['tmb1'] += parseFloat(r['TMB 1']) || 0;
+    dataBoat['tmb2'] += parseFloat(r['TMB 2']) || 0;
+    dataBoat['tmb3'] += parseFloat(r['TMB 3']) || 0;
+    dataBoat['tmb5'] += parseFloat(r['TMB 5']) || 0;
+    dataBoat['sip3'] += parseFloat(r['3SIP']) || 0;
+    dataBoat['pd15'] += parseFloat(r['15PD']) || 0;
+    dataBoat['prnc'] += parseFloat(r['PRNC']) || 0;
+    dataBoat['expl'] += parseFloat(r['EXPL']) || 0;
+    dataBoat['lain'] += parseFloat(r['LAIN']) || 0;
 });
 
-// Update ke HTML
 document.getElementById('statGunaBulan').innerText = totalGunaBulan.toFixed(0) + ' L';
 document.getElementById('statMasukBulan').innerText = totalMasukBulan.toFixed(0) + ' L';
-            
-
             if (cartaBoat) cartaBoat.destroy();
             const ctx1 = document.getElementById('cartaBoat');
             cartaBoat = new Chart(ctx1, {
