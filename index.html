@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192/2563eb/ffffff?text=K">
+    <title>Rekod Ringkasan Petrol - Kapalai Dive Resort</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Menghalang pengguna daripada 'highlight' teks secara tidak sengaja supaya rasa seperti app */
+        body {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: none;
+        }
+        input, textarea {
+            user-select: text;
+        }
+
+        /* Penambahbaikan untuk cetakan (Dashboard) */
+        @media print {
+            @page { size: A4 landscape; margin: 10mm; }
+            #bahagianLogMasuk, #bahagianInput, button, input, select, .no-print, .bg-indigo-50 { display: none !important; }
+            #bahagianUtama, #bahagianDashboard { display: block !important; visibility: visible !important; }
+            body { background: white !important; padding: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .shadow-md { box-shadow: none !important; border: 1px solid #eee !important; }
+            #bahagianDashboard { width: 100% !important; margin: 0 !important; padding: 0 !important; }
+            .bg-gray-50 { background-color: #f9fafb !important; border: 1px solid #ddd !important; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-3">
+
+    <div id="bahagianLogMasuk" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded-lg shadow-md w-[350px]">
+            <div class="text-center mb-5">
+                <div class="mx-auto h-20 w-20 bg-blue-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">K</div>
+                <p class="text-sm text-gray-600 mt-2 font-semibold">KAPALAI DIVE RESORT</p>
+                <p class="text-xs text-gray-500">Sistem Rekod Petrol - Cloud Sync</p>
+            </div>
+            <h2 class="text-xl font-bold text-center text-blue-700 mb-6">🔐 LOG MASUK</h2>
+            <div class="mb-4">
+                <label class="block mb-2 text-sm font-medium">ID Pengguna</label>
+                <input type="text" id="idPengguna" class="w-full border rounded p-2 text-sm" placeholder="Masukkan ID Pengguna" required>
+            </div>
+            <div class="mb-6">
+                <label class="block mb-2 text-sm font-medium">Kata Laluan</label>
+                <input type="password" id="kataLaluan" class="w-full border rounded p-2 text-sm" placeholder="Masukkan Kata Laluan" required>
+            </div>
+            <button onclick="semakLogMasuk()" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition font-medium">
+                Log Masuk
+            </button>
+            <p id="mesejRalat" class="text-red-600 text-sm text-center mt-3 hidden">ID atau Kata Laluan salah!</p>
+            <p id="loadingLogin" class="text-blue-600 text-sm text-center mt-3 hidden">Connecting ke server...</p>
+        </div>
+    </div>
+
+    <div id="bahagianUtama" class="hidden">
+        <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+            <div class="flex items-center gap-3">
+                <div class="h-12 w-12 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl font-bold">K</div>
+                <div class="select-none">
+                    <h1 class="text-xl font-bold text-blue-700">⛽ <span id="tajukHalaman">REKOD RINGKASAN PETROL</span></h1>
+                    <div class="mt-1">
+                        <select id="pilihJenisMinyak" onchange="tukarJenisMinyak()" class="bg-blue-50 border border-blue-300 text-blue-900 text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-1 font-bold">
+                            <option value="PETROL">MOD: PETROL</option>
+                            <option value="DIESEL">MOD: DIESEL</option>
+                        </select>
+                    </div>
+                    <p class="text-xs text-gray-500">Kapalai Dive Resort | <span id="statusSync" class="text-green-600">☁️ Synced</span></p>
+                </div>
+            </div>
+            <div class="flex gap-2 items-center">
+                <span id="infoPengguna" class="text-sm bg-blue-100 px-3 py-1 rounded"></span>
+                <button onclick="toggleDashboard()" class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 transition text-sm">📊 Dashboard</button>
+                <button id="butangPengguna" onclick="bukaPengurusanPengguna()" class="hidden bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition text-sm">👤 Urus Akaun</button>
+                <button onclick="muatTurunPDF()" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-sm">📄 PDF</button>
+                <button onclick="logKeluar()" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-sm">🚪 Keluar</button>
+            </div>
+        </div>
+
+        <div id="bahagianDashboard" class="hidden w-[98%] mx-auto bg-white rounded-lg shadow-md p-5 mb-4">
+            <div class="flex justify-between items-center mb-3">
+                <h2 class="text-lg font-semibold text-indigo-700">📊 Dashboard Penggunaan <span class="labelMinyak">Petrol</span></h2>
+                <button onclick="window.print()" class="bg-gray-100 px-3 py-1 rounded text-xs hover:bg-gray-200 border no-print">🖨️ Cetak Skrin Dashboard</button>
+            </div>
+            
+            <!-- Kad Statistik Ringkas -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                    <p class="text-[10px] uppercase text-blue-600 font-bold">Total Guna (Bulan Ini)</p>
+                    <p id="statGunaBulan" class="text-lg font-bold text-blue-800">0 L</p>
+                </div>
+                <div class="bg-green-50 p-3 rounded-lg border border-green-100">
+                    <p class="text-[10px] uppercase text-green-600 font-bold">Stok Masuk (Bulan Ini)</p>
+                    <p id="statMasukBulan" class="text-lg font-bold text-green-800">0 L</p>
+                </div>
+                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                    <p class="text-[10px] uppercase text-purple-600 font-bold">Paling Kerap</p>
+                    <p id="statBotKerap" class="text-sm font-bold text-purple-800 uppercase">-</p>
+                </div>
+                <div class="bg-orange-50 p-3 rounded-lg border border-orange-100">
+                    <p class="text-[10px] uppercase text-orange-600 font-bold">Purata Harian</p>
+                    <p id="statPurata" class="text-lg font-bold text-orange-800">0 L</p>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-4">
+                <div class="bg-gray-50 p-3 rounded">
+                    <h3 id="tajukCartaBoat" class="text-sm font-semibold mb-2">Penggunaan Mengikut Kategori</h3>
+                    <canvas id="cartaBoat"></canvas>
+                </div>
+                <div class="bg-gray-50 p-3 rounded">
+                    <h3 id="tajukCartaBaki" class="text-sm font-semibold mb-2">Trend Baki Akhir</h3>
+                    <canvas id="cartaBaki"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="w-[98%] mx-auto bg-white rounded-lg shadow-md p-5">
+            <div class="flex flex-wrap gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+                <div>
+                    <label class="block mb-1 text-xs font-medium">Filter Bulan</label>
+                    <input type="month" id="filterBulan" class="border rounded p-1.5 text-sm" onchange="paparkanSemula()">
+                </div>
+                <div>
+                    <label class="block mb-1 text-xs font-medium">Cari Tarikh</label>
+                    <input type="date" id="cariTarikh" class="border rounded p-1.5 text-sm" onchange="cariIkutTarikh()">
+                </div>
+                <div class="flex items-end">
+                    <button onclick="resetFilter()" class="bg-gray-500 text-white px-3 py-1.5 rounded text-sm hover:bg-gray-600">Reset</button>
+                </div>
+            </div>
+
+            <div id="bahagianInput" class="hidden">
+                <h3 class="font-semibold mb-3 text-blue-700" id="tajukForm">➕ Tambah Rekod Baharu</h3>
+                <div class="mb-2 p-2 bg-yellow-50 rounded text-xs text-yellow-800" id="notaStaff">
+                    <b>Nota untuk Staff:</b> Anda hanya boleh isi Tarikh, Jumlah Masuk, Liter Penggunaan & Remark sahaja. Baki Awal dan Jumlah Keluar akan dikira secara automatik.
+                </div>
+                <div class="mb-2 p-2 bg-blue-50 rounded text-xs text-blue-800" id="notaAdmin">
+                    <b>Nota untuk Admin:</b> Pilih tarikh > Baki Awal auto > Isi Masuk > Isi liter penggunaan (Keluar auto) > Remark
+                </div>
+                <div class="mb-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex justify-between items-center shadow-sm">
+                    <span class="text-sm font-semibold text-indigo-700">📦 Stok Terkini dalam Tangki (Baki Terakhir):</span>
+                    <span id="stokTerkini" class="text-lg font-bold text-indigo-800">0 L</span>
+                </div>
+                <div class="grid md:grid-cols-4 gap-3 mb-5 p-4 bg-blue-50 rounded-lg">
+                    <input type="hidden" id="idEdit">
+                    <div><label class="block mb-1 font-medium text-sm">Tarikh *</label><input type="date" id="tarikh" class="w-full border rounded p-2 text-sm" required onchange="autoBakiAwal()"></div>
+                    <div><label class="block mb-1 font-medium text-sm">Baki Awal (L)</label><input type="number" id="bakiAwal" min="0" class="w-full border rounded p-2 text-sm bg-gray-100 admin-only-input" required readonly></div>
+                    <div><label class="block mb-1 font-medium text-sm">Jumlah Masuk (L) *</label><input type="number" id="jumlahMasuk" min="0" class="w-full border rounded p-2 text-sm" value="0"></div>
+                    <div><label class="block mb-1 font-medium text-sm">Jumlah Keluar (L)</label><input type="number" id="jumlahKeluar" min="0" class="w-full border rounded p-2 text-sm bg-gray-100" value="0" readonly></div>
+
+                    <div id="containerAgihan" class="md:col-span-4 grid md:grid-cols-4 gap-3 border-t pt-3 mt-2">
+                        <!-- Input agihan dijana secara dinamik oleh JS -->
+                    </div>
+
+                    <div class="md:col-span-2"><label class="block mb-1 font-medium text-sm">Baki Akhir (L)</label><input type="number" id="bakiAkhir" min="0" class="w-full border rounded p-2 text-sm bg-gray-100 font-bold text-blue-600" readonly></div>
+                    <div class="md:col-span-2"><label class="block mb-1 font-medium text-sm">Remark *</label><input type="text" id="catatan" class="w-full border rounded p-2 text-sm" placeholder="Contoh: Dihantar ke boat, genset resort"></div>
+                </div>
+                <div class="text-center mb-5">
+                    <button onclick="simpanData()" id="btnSimpan" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition text-sm font-medium">Simpan Rekod</button>
+                    <button onclick="batalEdit()" id="btnBatal" class="hidden bg-gray-500 text-white px-6 py-2 rounded hover:bg-gray-600 transition text-sm font-medium ml-2">Batal</button>
+                </div>
+            </div>
+
+            <h2 class="text-lg font-semibold mb-3">📋 Senarai Rekod Bulanan <span id="labelBulan" class="text-sm text-blue-600"></span></h2>
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-xs" id="jadualRekod">
+                    <thead>
+                        <tr class="bg-gray-200 text-center">
+                            <th class="border p-2">Tarikh</th>
+                            <th class="border p-2">Baki Awal (L)</th>
+                            <th class="border p-2">Masuk (L)</th>
+                            <th class="border p-2">Keluar (L)</th>
+                            <!-- Headers dinamik dijana di sini -->
+                            <th class="border p-2">Baki Akhir (L)</th>
+                            <th class="border p-2">Remark</th>
+                            <th class="border p-2" id="tajukTindakan" style="display:none;">Tindakan</th>
+                        </tr>
+                    </thead>
+                    <tbody id="senaraiData"></tbody>
+                </table>
+            </div>
+
+            <div class="mt-5 p-3 bg-green-50 rounded-lg">
+                <h3 class="font-semibold text-green-800 text-sm">📊 Ringkasan Jumlah</h3>
+                <div id="jumlahKeseluruhan" class="text-sm mt-1"></div>
+                <p id="infoLaporan" class="text-xs text-gray-600 mt-2 italic font-medium"></p>
+                <p class="text-[10px] text-gray-400 mt-1">Last backup: <span id="lastBackup">-</span> | Data auto sync ke cloud</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="tetingkapPengguna" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-[95%] max-w-[400px] max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold text-purple-700">👤 Pengurusan Akaun Staff</h3>
+                <button onclick="tutupTetingkap()" class="text-gray-500 text-xl">&times;</button>
+            </div>
+            <div class="mb-5 p-3 bg-blue-50 rounded-lg">
+                <h4 class="font-semibold text-sm mb-2">📝 Daftar Akaun Staff Baru</h4>
+                <div class="mb-2"><label class="text-sm">ID Pengguna</label><input type="text" id="idBaru" class="w-full border rounded p-1.5 text-sm" placeholder="Contoh: staf01"></div>
+                <div class="mb-2"><label class="text-sm">Kata Laluan</label><input type="password" id="passBaru" class="w-full border rounded p-1.5 text-sm" placeholder="Masukkan kata laluan"></div>
+                <button onclick="daftarPengguna()" class="w-full bg-blue-600 text-white py-1.5 rounded text-sm hover:bg-blue-700">✅ Daftar Staff</button>
+            </div>
+            <h4 class="font-semibold text-sm mb-2">📋 Senarai Akaun</h4>
+            <div id="senaraiAkaun"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getDatabase, ref, set, onValue, push, remove, update, get, off } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyDbUsh-pP06g7_PzXSp-3zPqJQIvLPWFB",
+            authDomain: "record-petrol-kapalai.firebaseapp.com",
+            databaseURL: "https://record-petrol-kapalai-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "record-petrol-kapalai",
+            storageBucket: "record-petrol-kapalai.firebasestorage.app",
+            messagingSenderId: "101497648666",
+            appId: "1:101497648666:web:60860abc6462B9128503a3"
+        };
+
+        const ADMIN_ID = "admin";
+        const ADMIN_PASS = "admin123";
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let jenisMinyakSemasa = "PETROL";
+        let senaraiRekod = [];
+        let senaraiPengguna = [];
+        let penggunaSemasa = null;
+        let modEdit = false;
+        let editKey = null;
+        let cartaBoat = null, cartaBaki = null;
+
+        // Konfigurasi Mengikut Jenis Minyak
+        const CONFIG_MINYAK = {
+            PETROL: {
+                path: 'rekodPetrol',
+                title: 'REKOD RINGKASAN PETROL',
+                items: [
+                    { id: 'kapalai1', short: 'KPL 1' }, { id: 'kapalai2', short: 'KPL 2' }, { id: 'kapalai3', short: 'KPL 3' },
+                    { id: 'timba1', short: 'TMB 1' }, { id: 'timba2', short: 'TMB 2' }, { id: 'timba3', short: 'TMB 3' }, { id: 'timba5', short: 'TMB 5' },
+                    { id: 'threeSipadan', short: '3SIP' }, { id: 'oneSpd', short: '1SPD' }, { id: 'kplPrince', short: 'PRNC' }, { id: 'kplExplorer', short: 'EXPL' },
+                    { id: 'penggunaanLain', short: 'LAIN' }
+                ]
+            },
+            DIESEL: {
+                path: 'rekodDiesel',
+                title: 'REKOD RINGKASAN DIESEL',
+                items: [
+                    { id: 'cummins1', short: 'CUMMINS 1' }, { id: 'cummins2', short: 'CUMMINS 2' }, { id: 'cummins3', short: 'CUMMINS 3' },
+                    { id: 'mitsubishi1', short: 'MITSU 1' }, { id: 'mitsubishi2', short: 'MITSU 2' }, { id: 'mitsubishi3', short: 'MITSU 3' },
+                    { id: 'penggunaanLain', short: 'LAIN' }
+                ]
+            }
+        };
+
+        const penggunaRef = ref(db, 'senaraiPengguna');
+        const backupRef = ref(db, 'lastBackup');
+
+        function initFirebaseListener() {
+            const path = CONFIG_MINYAK[jenisMinyakSemasa].path;
+            const rekodRef = ref(db, path);
+            
+            // Bersihkan listener lama jika ada
+            off(rekodRef);
+
+            onValue(rekodRef, (snapshot) => {
+                const data = snapshot.val();
+                senaraiRekod = data? Object.entries(data).map(([key, val]) => ({...val, _key: key})) : [];
+                if (penggunaSemasa) {
+                    paparkanSemula();
+                    if (document.getElementById('tarikh').value) autoBakiAwal();
+                }
+                updateSyncStatus('☁️ Synced');
+                updateDashboard();
+            });
+        }
+
+        window.tukarJenisMinyak = function() {
+            jenisMinyakSemasa = document.getElementById('pilihJenisMinyak').value;
+            document.getElementById('tajukHalaman').textContent = CONFIG_MINYAK[jenisMinyakSemasa].title;
+            document.querySelectorAll('.labelMinyak').forEach(el => el.textContent = jenisMinyakSemasa.toLowerCase());
+            
+            initUI();
+            initFirebaseListener();
+            if (modEdit) batalEdit();
+        };
+
+        onValue(penggunaRef, (snapshot) => {
+            const data = snapshot.val();
+            senaraiPengguna = data? Object.values(data) : [{ id: ADMIN_ID, pass: ADMIN_PASS, peranan: "admin" }];
+        });
+
+        onValue(backupRef, (snapshot) => {
+            document.getElementById('lastBackup').textContent = snapshot.val() || '-';
+        });
+
+        function updateSyncStatus(status) {
+            document.getElementById('statusSync').textContent = status;
+        }
+
+        async function backupData() {
+            updateSyncStatus('⏳ Syncing...');
+            await set(backupRef, new Date().toLocaleString('ms-MY'));
+        }
+
+        window.semakLogMasuk = async function() {
+            document.getElementById('loadingLogin').classList.remove('hidden');
+            document.getElementById('mesejRalat').classList.add('hidden');
+            const idInput = document.getElementById('idPengguna').value.trim();
+            const passInput = document.getElementById('kataLaluan').value.trim();
+
+            try {
+                const snapshot = await get(penggunaRef);
+                const users = snapshot.val()? Object.values(snapshot.val()) : [{ id: ADMIN_ID, pass: ADMIN_PASS, peranan: "admin" }];
+                const akaunDijumpai = users.find(a => a.id === idInput && a.pass === passInput);
+
+                document.getElementById('loadingLogin').classList.add('hidden');
+
+                if (akaunDijumpai) {
+                    penggunaSemasa = akaunDijumpai;
+                    document.getElementById('bahagianLogMasuk').classList.add('hidden');
+                    
+                    initUI();
+                    initFirebaseListener();
+
+                    document.getElementById('bahagianUtama').classList.remove('hidden');
+                    document.getElementById('infoPengguna').textContent = `${penggunaSemasa.id} (${penggunaSemasa.peranan})`;
+                    document.getElementById('bahagianInput').classList.remove('hidden');
+
+                    if (penggunaSemasa.peranan === 'admin') {
+                        document.getElementById('butangPengguna').style.display = 'block';
+                        document.getElementById('tajukTindakan').style.display = 'table-cell';
+                        document.getElementById('notaStaff').style.display = 'none'; 
+                        document.getElementById('notaAdmin').style.display = 'block'; // Paparkan nota admin
+                        document.querySelectorAll('.admin-only-input').forEach(input => {
+                            input.disabled = false; // Aktifkan input admin
+                            input.classList.remove('bg-gray-100'); // Buang gaya disabled
+                            input.readOnly = false; // Benarkan admin edit
+                        });
+                        document.querySelectorAll('.boat-input').forEach(input => {
+                            input.disabled = false;
+                        });
+                    }
+                    else { // Pengguna staff
+                        document.getElementById('butangPengguna').style.display = 'none'; // Sembunyikan butang urus akaun
+                        document.getElementById('tajukTindakan').style.display = 'none'; // Sembunyikan kolum tindakan
+                        document.getElementById('notaStaff').classList.remove('hidden'); // Paparkan nota staff
+                        document.getElementById('notaAdmin').style.display = 'none'; // Sembunyikan nota admin
+                        document.querySelectorAll('.admin-only-input').forEach(input => {
+                            input.disabled = true; // Nyahaktifkan input admin
+                            input.classList.add('bg-gray-100'); // Tambah gaya disabled
+                            input.readOnly = true; // Pastikan readonly untuk staff
+                        });
+                        document.querySelectorAll('.boat-input').forEach(input => {
+                            input.disabled = false; // Staff MESTI boleh isi data bot
+                            input.readOnly = false;
+                            input.classList.remove('bg-gray-100');
+                        });
+                    }
+
+                    const today = new Date();
+                    document.getElementById('filterBulan').value = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+                    paparkanSemula();
+                    kiraBakiAkhir();
+                } else {
+                    document.getElementById('mesejRalat').textContent = 'ID atau Kata Laluan salah!';
+                    document.getElementById('mesejRalat').classList.remove('hidden');
+                }
+            } catch (error) {
+                document.getElementById('loadingLogin').classList.add('hidden');
+                document.getElementById('mesejRalat').textContent = 'Gagal connect ke Firebase!';
+                document.getElementById('mesejRalat').classList.remove('hidden');
+            }
+        }
+
+        function initUI() {
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            
+            // 1. Bina Input Agihan
+            const container = document.getElementById('containerAgihan');
+            container.innerHTML = `<div class="md:col-span-4"><p class="text-xs font-semibold text-gray-600 mb-2">Agihan ${jenisMinyakSemasa} - Isi Liter Penggunaan</p></div>`;
+            
+            config.items.forEach(item => {
+                container.innerHTML += `
+                    <div>
+                        <label class="block mb-1 font-medium text-sm">${item.short} (L)</label>
+                        <input type="number" id="${item.id}" min="0" class="w-full border rounded p-2 text-sm boat-input" value="0">
+                    </div>`;
+            });
+
+            // 2. Bina Header Jadual
+            const headRow = document.querySelector('#jadualRekod thead tr');
+            const baseHeaders = ['Tarikh', 'Baki Awal (L)', 'Masuk (L)', 'Keluar (L)'];
+            const endHeaders = ['Baki Akhir (L)', 'Remark', 'Tindakan'];
+            
+            let htmlHead = '';
+            baseHeaders.forEach(h => htmlHead += `<th class="border p-2">${h}</th>`);
+            config.items.forEach(item => htmlHead += `<th class="border p-2">${item.short}</th>`);
+            endHeaders.forEach(h => {
+                if(h === 'Tindakan') {
+                    htmlHead += `<th class="border p-2" id="tajukTindakan" style="${penggunaSemasa && penggunaSemasa.peranan === 'admin' ? '' : 'display:none;'}">${h}</th>`;
+                } else {
+                    htmlHead += `<th class="border p-2">${h}</th>`;
+                }
+            });
+            headRow.innerHTML = htmlHead;
+
+            // Re-attach listeners to new inputs
+            document.querySelectorAll('#bakiAwal, #jumlahMasuk, #jumlahKeluar, .boat-input').forEach(input => {
+                input.removeEventListener('input', kiraBakiAkhir);
+                input.addEventListener('input', kiraBakiAkhir);
+            });
+        }
+
+        // Global Event Listeners (Letak di luar supaya sentiasa berfungsi)
+        document.querySelectorAll('#bakiAwal, #jumlahMasuk, #jumlahKeluar, .boat-input').forEach(input => {
+            input.addEventListener('input', kiraBakiAkhir);
+        });
+
+        function kiraBakiAkhir() {
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            const bakiAwal = parseFloat(document.getElementById('bakiAwal').value) || 0;
+            const masuk = parseFloat(document.getElementById('jumlahMasuk').value) || 0;
+            
+            let totalBoat = 0;
+            config.items.forEach(bot => {
+                totalBoat += parseFloat(document.getElementById(bot.id).value) || 0;
+            });
+
+            // Jumlah Keluar adalah jumlah semua liter yang diisi ke bot
+            document.getElementById('jumlahKeluar').value = totalBoat;
+
+            const bakiAkhir = bakiAwal + masuk - totalBoat;
+            document.getElementById('bakiAkhir').value = bakiAkhir;
+        }
+
+        window.logKeluar = function() {
+            penggunaSemasa = null;
+            document.getElementById('bahagianUtama').classList.add('hidden');
+            document.getElementById('bahagianLogMasuk').classList.remove('hidden');
+            document.getElementById('idPengguna').value = '';
+            document.getElementById('kataLaluan').value = '';
+        }
+
+        window.toggleDashboard = function() {
+            const dash = document.getElementById('bahagianDashboard');
+            dash.classList.toggle('hidden');
+            if (!dash.classList.contains('hidden')) updateDashboard();
+        }
+
+        function updateDashboard() {
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            const bulanFilter = document.getElementById('filterBulan').value;
+            const bulanGuna = bulanFilter || new Date().toISOString().slice(0, 7);
+            const rekodBulan = senaraiRekod.filter(r => r.tarikh.startsWith(bulanGuna));
+            
+            // Kemaskini label tajuk dashboard
+            const namaBulan = new Date(bulanGuna + '-01').toLocaleDateString('ms-MY', {month: 'long', year: 'numeric'});
+            document.getElementById('tajukCartaBoat').textContent = `Penggunaan Ikut Kategori - ${namaBulan}`;
+            document.getElementById('tajukCartaBaki').textContent = `Trend Baki Akhir - ${namaBulan}`;
+
+            const dataBoat = {};
+            let totalMasukBulan = 0;
+            config.items.forEach(bot => dataBoat[bot.id] = 0);
+
+            rekodBulan.forEach(r => {
+                totalMasukBulan += (r.jumlahMasuk || 0);
+                config.items.forEach(bot => {
+                    dataBoat[bot.id] += r[bot.id] || 0;
+                });
+            });
+
+            if (cartaBoat) cartaBoat.destroy();
+            const ctx1 = document.getElementById('cartaBoat');
+            cartaBoat = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: SENARAI_BOT.map(bot => bot.short),
+                    labels: config.items.map(bot => bot.short),
+                    datasets: [{
+                        label: 'Liter',
+                        data: config.items.map(bot => dataBoat[bot.id]),
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)'
+                    }]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: true,
+                    animation: false,
+                    plugins: { legend: { display: false } } 
+                }
+            });
+
+            // Kemaskini Kad Statistik
+            const totalGunaBulan = Object.values(dataBoat).reduce((a, b) => a + b, 0);
+            const purata = (totalGunaBulan / (rekodBulan.length || 1)).toFixed(1);
+            
+            // Cari bot paling banyak guna
+            let maxGuna = 0;
+            let botKerap = "-";
+            config.items.forEach(bot => {
+                if (dataBoat[bot.id] > maxGuna) {
+                    maxGuna = dataBoat[bot.id];
+                    botKerap = bot.short;
+                }
+            });
+
+            document.getElementById('statGunaBulan').textContent = totalGunaBulan + " L";
+            document.getElementById('statMasukBulan').textContent = totalMasukBulan + " L";
+            document.getElementById('statBotKerap').textContent = botKerap;
+            document.getElementById('statPurata').textContent = purata + " L";
+
+            // Susun rekod mengikut tarikh untuk graf trend
+            const rekodTrend = [...rekodBulan].sort((a, b) => new Date(a.tarikh) - new Date(b.tarikh));
+
+            if (cartaBaki) cartaBaki.destroy();
+            const ctx2 = document.getElementById('cartaBaki');
+            cartaBaki = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: rekodTrend.map(r => new Date(r.tarikh).toLocaleDateString('ms-MY', {day:'2-digit', month:'short'})),
+                    datasets: [{
+                        label: 'Baki Akhir',
+                        data: rekodTrend.map(r => r.bakiAkhir),
+                        borderColor: 'rgba(34, 197, 94, 1)',
+                        tension: 0.3
+                    }]
+                },
+                options: { 
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: false 
+                }
+            });
+        }
+
+        window.autoBakiAwal = function() {
+            const tarikhPilih = document.getElementById('tarikh').value;
+            if (!tarikhPilih) return;
+            
+            if (senaraiRekod.length === 0) {
+                document.getElementById('bakiAwal').value = 0;
+                return;
+            }
+
+            // Cari rekod terakhir sebelum tarikh yang dipilih secara tepat
+            const rekodSebelum = [...senaraiRekod]
+                .filter(r => r.tarikh < tarikhPilih)
+                .sort((a, b) => {
+                    if (a.tarikh !== b.tarikh) return b.tarikh.localeCompare(a.tarikh);
+                    return (b.masaSimpan || "").localeCompare(a.masaSimpan || "");
+                })[0];
+
+            document.getElementById('bakiAwal').value = rekodSebelum? rekodSebelum.bakiAkhir : 0;
+            kiraBakiAkhir();
+        }
+
+        window.cariIkutTarikh = function() {
+            const tarikh = document.getElementById('cariTarikh').value;
+            if (!tarikh) return paparkanSemula();
+            const rekod = senaraiRekod.filter(r => r.tarikh === tarikh);
+            renderTable(rekod);
+        }
+
+        window.resetFilter = function() {
+            document.getElementById('filterBulan').value = '';
+            document.getElementById('cariTarikh').value = '';
+            paparkanSemula();
+        }
+
+        window.paparkanSemula = function() {
+            const bulanFilter = document.getElementById('filterBulan').value;
+            let rekodTapis = senaraiRekod;
+            if (bulanFilter) {
+                rekodTapis = senaraiRekod.filter(r => r.tarikh.startsWith(bulanFilter));
+                const bulanNama = new Date(bulanFilter + '-01').toLocaleDateString('ms-MY', {month: 'long', year: 'numeric'});
+                document.getElementById('labelBulan').textContent = `(${bulanNama})`;
+            } else {
+                document.getElementById('labelBulan').textContent = '(Semua)';
+            }
+            renderTable(rekodTapis);
+            updateDashboard(); // Pastikan dashboard dikemaskini apabila filter berubah
+            
+            // Ambil baki akhir daripada rekod yang mempunyai tarikh & masa simpan paling terbaru
+            const latest = [...senaraiRekod].sort((a, b) => {
+                if (a.tarikh !== b.tarikh) return b.tarikh.localeCompare(a.tarikh);
+                return (b.masaSimpan || "").localeCompare(a.masaSimpan || "");
+            })[0];
+            document.getElementById('stokTerkini').textContent = (latest ? latest.bakiAkhir : 0) + " L";
+        }
+
+        function renderTable(rekodArray) {
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            const tbody = document.getElementById('senaraiData');
+            tbody.innerHTML = '';
+            let totalMasuk = 0, totalKeluar = 0, totalBoat = 0;
+
+            // Susun jadual mengikut tarikh terbaru di atas
+            rekodArray.sort((a, b) => {
+                if (a.tarikh !== b.tarikh) return b.tarikh.localeCompare(a.tarikh);
+                return (b.masaSimpan || "").localeCompare(a.masaSimpan || "");
+            }).forEach(rekod => {
+                let jumlahBoat = 0;
+                let boatCells = '';
+                
+                config.items.forEach(bot => {
+                    const nilai = rekod[bot.id] || 0;
+                    jumlahBoat += nilai;
+                    boatCells += `<td class="border p-2">${nilai}</td>`;
+                });
+
+                totalMasuk += rekod.jumlahMasuk || 0;
+                totalKeluar += rekod.jumlahKeluar || 0;
+                totalBoat += jumlahBoat;
+
+                const row = `
+                    <tr class="text-center hover:bg-gray-50">
+                        <td class="border p-2">${new Date(rekod.tarikh).toLocaleDateString('ms-MY')}</td>
+                        <td class="border p-2">${rekod.bakiAwal || 0}</td>
+                        <td class="border p-2 text-green-600">${rekod.jumlahMasuk || 0}</td>
+                        <td class="border p-2 text-red-600">${rekod.jumlahKeluar || 0}</td>
+                        ${boatCells}
+                        <td class="border p-2 font-bold text-blue-600">${rekod.bakiAkhir || 0}</td>
+                        <td class="border p-2 text-left">${rekod.catatan || '-'}</td>
+                        ${penggunaSemasa && penggunaSemasa.peranan === 'admin'? `
+                        <td class="border p-2">
+                            <button onclick="editRekod('${rekod._key}')" class="text-blue-600 text-xs hover:underline mr-1">Edit</button>
+                            <button onclick="padamRekod('${rekod._key}')" class="text-red-600 text-xs hover:underline">Padam</button>
+                        </td>` : ''}
+                    </tr>`;
+                tbody.innerHTML += row;
+            });
+
+            document.getElementById('jumlahKeseluruhan').innerHTML = `
+                Jumlah Masuk: <b class="text-green-600">${totalMasuk} L</b> |
+                Jumlah Keluar: <b class="text-red-600">${totalKeluar} L</b> |
+                Total Penggunaan: <b class="text-blue-600">${totalBoat} L</b>
+            `;
+
+            // Kemaskini maklumat penyedia laporan
+            const skrg = new Date();
+            document.getElementById('infoLaporan').innerHTML = `Laporan dibuat oleh: <b>iful</b> | Tarikh: ${skrg.toLocaleDateString('ms-MY')} | Masa: ${skrg.toLocaleTimeString('ms-MY')}`;
+        }
+
+        window.simpanData = async function() {
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            const tarikh = document.getElementById('tarikh').value;
+            const bakiAwal = parseFloat(document.getElementById('bakiAwal').value) || 0;
+            const jumlahMasuk = parseFloat(document.getElementById('jumlahMasuk').value) || 0;
+            const catatan = document.getElementById('catatan').value.trim();
+
+            if (!tarikh) return alert('⚠️ Pilih tarikh!');
+            if (!catatan) return alert('⚠️ Isi remark!');
+
+            const dataBoat = {};
+            config.items.forEach(bot => {
+                dataBoat[bot.id] = parseFloat(document.getElementById(bot.id).value) || 0;
+            });
+
+            const totalBoat = Object.values(dataBoat).reduce((a,b) => a+b, 0);
+            const bakiAkhir = bakiAwal + jumlahMasuk - totalBoat;
+
+            const rekodBaru = {
+                tarikh, bakiAwal, jumlahMasuk, jumlahKeluar: totalBoat, catatan, bakiAkhir,
+                ...dataBoat,
+                oleh: penggunaSemasa.id,
+                masaSimpan: new Date().toISOString()
+            };
+
+            updateSyncStatus('⏳ Saving...');
+            try {
+                if (modEdit && editKey) {
+                    await update(ref(db, `${config.path}/${editKey}`), rekodBaru);
+                    batalEdit();
+                } else {
+                    await push(ref(db, config.path), rekodBaru);
+                }
+                await backupData();
+                kosongkanForm();
+                alert('✅ Rekod berjaya disimpan!');
+            } catch (error) {
+                alert('❌ Gagal simpan: ' + error.message);
+            }
+        }
+
+        window.batalEdit = function() {
+            modEdit = false;
+            editKey = null;
+            document.getElementById('btnBatal').classList.add('hidden');
+            document.getElementById('tajukForm').textContent = '➕ Tambah Rekod Baharu';
+            kosongkanForm();
+        }
+
+        function kosongkanForm() {
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            document.getElementById('tarikh').value = '';
+            document.getElementById('bakiAwal').value = 0;
+            document.getElementById('jumlahMasuk').value = 0;
+            document.getElementById('jumlahKeluar').value = 0;
+            document.getElementById('catatan').value = '';
+            config.items.forEach(bot => {
+                document.getElementById(bot.id).value = 0;
+            });
+            document.getElementById('bakiAkhir').value = 0;
+        }
+
+        window.editRekod = function(key) {
+            if (penggunaSemasa.peranan !== 'admin') return;
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            modEdit = true;
+            const r = senaraiRekod.find(rec => rec._key === key);
+            if (!r) return;
+            editKey = r._key;
+            document.getElementById('idEdit').value = r._key;
+            document.getElementById('tarikh').value = r.tarikh;
+            document.getElementById('bakiAwal').value = r.bakiAwal;
+            document.getElementById('jumlahMasuk').value = r.jumlahMasuk;
+            document.getElementById('jumlahKeluar').value = r.jumlahKeluar;
+            config.items.forEach(bot => {
+                document.getElementById(bot.id).value = r[bot.id] || 0;
+            });
+            document.getElementById('catatan').value = r.catatan;
+            document.getElementById('tajukForm').textContent = '✏️ Kemaskini Rekod';
+            document.getElementById('btnSimpan').textContent = 'Kemaskini';
+            document.getElementById('btnBatal').classList.remove('hidden');
+            kiraBakiAkhir();
+            window.scrollTo(0, 0);
+        }
+
+        window.padamRekod = async function(key) {
+            if (penggunaSemasa.peranan !== 'admin') return;
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            const rekodToDelete = senaraiRekod.find(rec => rec._key === key);
+            if (!rekodToDelete) return;
+            if (confirm('Padam rekod tarikh ' + new Date(rekodToDelete.tarikh).toLocaleDateString('ms-MY') + '?')) {
+                await remove(ref(db, `${config.path}/${key}`));
+                await backupData();
+            }
+        }
+
+        window.muatTurunPDF = function() {
+            const { jsPDF } = window.jspdf;
+            const config = CONFIG_MINYAK[jenisMinyakSemasa];
+            const doc = new jsPDF('l', 'mm', 'a4');
+            
+            // Get currently filtered data
+            const bulanFilter = document.getElementById('filterBulan').value;
+            const tarikhCari = document.getElementById('cariTarikh').value;
+            let rekodTapis = [...senaraiRekod];
+            if (tarikhCari) rekodTapis = rekodTapis.filter(r => r.tarikh === tarikhCari);
+            else if (bulanFilter) rekodTapis = rekodTapis.filter(r => r.tarikh.startsWith(bulanFilter));
+            rekodTapis.sort((a, b) => a.tarikh.localeCompare(b.tarikh) || (a.masaSimpan || "").localeCompare(b.masaSimpan || ""));
+            
+            doc.setFontSize(16);
+            doc.setTextColor(37, 99, 235);
+            doc.text(`${config.title} - KAPALAI DIVE RESORT`, 148, 15, { align: 'center' });
+            
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            const filterLabel = tarikhCari || bulanFilter || "Semua Rekod";
+            const skrg = new Date();
+            doc.text(`Laporan: ${filterLabel} | Dibuat oleh: iful | Tarikh: ${skrg.toLocaleDateString('ms-MY')} | Masa: ${skrg.toLocaleTimeString('ms-MY')}`, 148, 22, { align: 'center' });
+
+            let tableStartY = 28;
+
+            // Capture dashboard charts
+            const dash = document.getElementById('bahagianDashboard');
+            const wasHidden = dash.classList.contains('hidden');
+            if (wasHidden) dash.classList.remove('hidden'); // Show briefly to ensure dimensions
+            updateDashboard();
+
+            const canvasBoat = document.getElementById('cartaBoat');
+            const canvasBaki = document.getElementById('cartaBaki');
+            
+            if (canvasBoat && canvasBaki) {
+                try {
+                    const imgBoat = canvasBoat.toDataURL('image/png', 1.0);
+                    const imgBaki = canvasBaki.toDataURL('image/png', 1.0);
+                    
+                    doc.addImage(imgBoat, 'PNG', 10, 30, 135, 65);
+                    doc.addImage(imgBaki, 'PNG', 152, 30, 135, 65);
+                    tableStartY = 100;
+                } catch (e) {
+                    console.warn("Gagal menyertakan carta dalam PDF", e);
+                }
+            }
+            if (wasHidden) dash.classList.add('hidden'); // Hide back
+
+            const headers = [['Tarikh', 'Baki Awal', 'Masuk', 'Keluar', ...config.items.map(b => b.short), 'Baki Akhir', 'Remark']];
+            const data = rekodTapis.map(r => [
+                new Date(r.tarikh).toLocaleDateString('ms-MY'), r.bakiAwal || 0, r.jumlahMasuk || 0, r.jumlahKeluar || 0,
+                ...config.items.map(b => r[b.id] || 0),
+                (r.bakiAkhir || 0).toFixed(2), r.catatan || '-'
+            ]);
+            
+            doc.autoTable({ 
+                head: headers, 
+                body: data, 
+                startY: tableStartY, 
+                theme: 'grid', 
+                styles: { fontSize: 6, cellPadding: 1 }, 
+                headStyles: { fillColor: [37, 99, 235] } 
+            });
+
+            doc.save(`Rekod_${jenisMinyakSemasa}_${filterLabel.replace(/[^a-z0-9]/gi, '_')}.pdf`);
+        }
+
+        window.backupManual = async function() {
+            await backupData();
+            alert('✅ Backup berjaya ke cloud!');
+        }
+
+        window.bukaPengurusanPengguna = function() {
+            if (penggunaSemasa.peranan !== 'admin') return alert('Admin sahaja boleh akses!');
+            document.getElementById('tetingkapPengguna').style.display = 'flex';
+            paparkanSenaraiAkaun();
+        }
+
+        window.tutupTetingkap = function() {
+            document.getElementById('tetingkapPengguna').style.display = 'none';
+        }
+
+        window.daftarPengguna = async function() {
+            const idBaru = document.getElementById('idBaru').value.trim();
+            const passBaru = document.getElementById('passBaru').value.trim();
+            if (!idBaru || !passBaru) return alert('⚠️ Isi semua maklumat!');
+            if (senaraiPengguna.some(a => a.id === idBaru)) return alert('⚠️ ID sudah wujud!');
+
+            const newUser = { id: idBaru, pass: passBaru, peranan: 'staf' };
+            await push(penggunaRef, newUser);
+            await backupData();
+
+            document.getElementById('idBaru').value = '';
+            document.getElementById('passBaru').value = '';
+            paparkanSenaraiAkaun();
+            alert('✅ Staff berjaya didaftar!');
+        }
+
+        function paparkanSenaraiAkaun() {
+            const kawasan = document.getElementById('senaraiAkaun');
+            kawasan.innerHTML = '';
+            senaraiPengguna.forEach((akaun) => {
+                kawasan.innerHTML += `
+                    <div class="flex justify-between items-center border-b py-2 text-sm">
+                        <span>${akaun.id} <span class="text-xs text-gray-500">(${akaun.peranan})</span></span>
+                        ${akaun.peranan !== 'admin' ? `<button onclick="padamAkaun('${akaun.id}')" class="text-red-600 text-xs hover:underline">Padam</button>` : '<span class="text-xs text-gray-400">Admin</span>'}
+                    </div>`;
+            });
+        }
+
+        window.padamAkaun = async function(userId) {
+            if (confirm('Padam akaun ini?')) {
+                const snapshot = await get(penggunaRef);
+                const users = snapshot.val();
+                const key = Object.keys(users).find(k => users[k].id === userId);
+                if (key) {
+                    await remove(ref(db, `senaraiPengguna/${key}`));
+                    await backupData();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
